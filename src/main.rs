@@ -10,7 +10,7 @@ pub struct Token {
 // Begin by accepting an input string, then two steps
 pub fn tokenizer(mut input: String) -> Vec<Token> {
     // append newline to the program
-    input.push('\n');
+    let input_str: () = input.push('\n').clone();
     // variable for tracking out position in the code, like a cursor
     let mut current: usize = 0;
 
@@ -115,31 +115,134 @@ pub fn tokenizer(mut input: String) -> Vec<Token> {
 // indicated by the use of &'a [Node<'a>].. This allows us to have a flexible number of
 //elements in these fields, without needing to allocate a vector on the heap
 #[derive(Debug, PartialEq)]
-
 struct Node<'a> {
-    kind: String,
-    value: String,
-    name: String,
-    callee: *mut Node<'a>,
-    expression: *mut Node<'a>,
-    body: Vec<Node<'a>>,
-    params: Vec<Node<'a>>,
-    arguments: &'a [Node<'a>],
-    context: &'a [Node<'a>],
+    kind: Option<String>,
+    value: Option<String>,
+    name: Option<String>,
+    callee: Option<*mut Node<'a>>,
+    expression: Option<*mut Node<'a>>,
+    body: Option<Vec<Node<'a>>>,
+    params: Option<Vec<Node<'a>>>,
+    arguments: Option<&'a [Node<'a>]>,
+    context: Option<&'a [Node<'a>]>,
 }
 
 // "ast" (abstract syntax tree) will simply be an alias for "Node". As node contains many
 // parameters it will end up being referenced a lot
-type Ast = Node<'a>;
-
+type Ast<'a> = Node<'a>;
 // Now we define our "parser" function that accepts a vector of Tokens
-fn parser(tokens: Vec<&Token>) -> ast {
+fn parser<'a>(tokens: Vec<&Token>, &mut pc: usize, &mut pt: Vec<&Token>) -> Ast<'a> {
     //create a counter much as we did before in tokenizer
-    let mut pc: usize = 0;
-
-    let mut pt: Vec<&Token> = Vec::new();
     pt = tokens;
 
     // Create our abstract syntax tree, with a root of type "Program" node
-    // TODO FINISH
+    let ast: Node = Ast {
+        kind: Option::from(String::from("Program")),
+        value: None,
+        name: None,
+        callee: None,
+        expression: None,
+        body: Option::from(Vec::new()),
+        params: None,
+        arguments: None,
+        context: None,
+    };
+   while pc < len(pt) {
+      ast.body.push(walk(pc, pt));
+   }
+    return ast;
 }
+// Instead of a 'while' loop to access our values, this function will do it recursively
+fn walk(&mut pc: usize, &mut pt: Vec<&Token>) -> Node<'static> {
+    // Inside the walk funciton we start by grabbing the 'current' token
+   let token = pt[pc];
+
+    // We can split each type of token off into a diff code path,
+    // beginning with 'number' tokens.
+    if token.parse::<f64>().is_ok() {
+       pc += 1;
+        return Node {
+            kind: Option::from(String::from("NumberLiteral")),
+            value: Option::from(token.value),
+            name: None,
+            callee: None,
+            expression: None,
+            body: None,
+            params: None,
+            arguments: None,
+            context: None,
+        };
+    }
+    // Next we look for CallExpressions. (open parenthesis)
+    if token.kind == "paren" && token.value == "(" {
+        // increment 'current' to skip the parenthesis since we don't care
+        // about it in the AST
+        pc += 1;
+        token = pt[pc];
+
+        // We create a base node with the type 'CallExpression', and were going
+        // to set the name as the current token's value since the next token
+        // after the open parenthesis is the name of the function
+        let n = Node {
+            kind: Option::from(String::from("CallExpression")),
+            value: None,
+            name: Option::from(token.value),
+            params: Option::from(Vec::new()),
+            callee: None,
+            expression: None,
+            body: None,
+            arguments: None,
+            context: None,
+        };
+        pc += 1;
+        token = pt[pc];
+    }
+		// And now we want to loop through each token that will be the `params` of
+		// our `CallExpression` until we encounter a closing parenthesis.
+		//
+		// Now this is where recursion comes in. Instead of trying to parse a
+		// potentially infinitely nested set of nodes we're going to rely on
+		// recursion to resolve things.
+		//
+		// To explain this, let's take our Lisp code. You can see that the
+		// parameters of the `add` are a number and a nested `CallExpression` that
+		// includes its own numbers.
+		//
+		//   (add 2 (subtract 4 2))
+		//
+		// You'll also notice that in our tokens array we have multiple closing
+		// parenthesis.
+		//
+		//   [
+		//     { type: 'paren',  value: '('        },
+		//     { type: 'name',   value: 'add'      },
+		//     { type: 'number', value: '2'        },
+    	//     { type: 'paren',  value: '('        },
+		//     { type: 'name',   value: 'subtract' },
+		//     { type: 'number', value: '4'        },
+		//     { type: 'number', value: '2'        },
+		//     { type: 'paren',  value: ')'        }, <<< Closing parenthesis
+		//     { type: 'paren',  value: ')'        }  <<< Closing parenthesis
+		//   ]
+		//
+		// We're going to rely on the nested `walk` function to increment our
+		// `current` variable past any nested `CallExpressions`.
+
+		// So we create a `while` loop that will continue until it encounters a
+		// token with a `type` of `'paren'` and a `value` of a closing
+		// parenthesis.
+   while token.kind != "paren"  || (token.kind == "paren" && token.value != ")" {
+       // we call the 'walk' function which will return a 'node' and we'll push it into out 'node.params'.
+       n.params.push(walk(pc, pt));
+       token = pt[pc];
+   }
+    // Finally we will increment 'current' one last time to skip the closing
+    //parenthesis
+    pc += 1;
+    return n;
+}
+
+ fn main() {
+    println!("way more complicated than the Go port....")
+
+ }
