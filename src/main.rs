@@ -253,7 +253,51 @@ fn traverser(a: Ast, v: Visitor) {
 // call the next function that we will define: "traverseNode
 fn traverseArray(a: Vec<Node>, p: Node, v: Visitor) {
     for child in a {
-       traverseNode(child, p, v);
+       traverseNode(child, *p, *v);
+    }
+}
+fn traverseNode(n: Node, p: Node, v: Visitor) -> () {
+    // we iterate over the visitor we pass to the traverseNode function, and the value
+    // will be the function. We call it with the node and its parent
+    for (key, value) in &v {
+        if k == n.kind {
+            value(&n, *p)
+        }
+    }
+    // Next we split things up by the current node type
+    match n.kind {
+        // We start at top level "Program". Since program nodes have a prop named
+        // 'body' that has a Vector of nodes, we will call 'traverseArray" to traverse
+        // down into them. traverseArray will in turn call "traverseNode" so we are
+        Some(String::from("Program")) => {
+            if let Some(body) = n.body {
+                traverseArray(body, &n: Node, &v: Visitor)
+            }
+        }
+        Some(String::from("CallExpression")) => {
+                if let Some(params) = n.params {
+                    traverseArray(params, &n: Node, &v: Visitor)
+                }
+            }
+        Some(String::from("NumberLiteral")) => {
+                return ();
+        }
+        None() => { return () }
+    }
+}
+type Visitor<'a> = HashMap<&'a str, fn(&Node<'a>, Node<'a>)>;
+
+fn traverser(a: Ast, v: Visitor) {
+
+    // We call "traverseNode" with our ast with no "parent" because the top level of the
+    // AST doesn't have one
+    traverseNode(node(a), p, v);
+}
+// a traverseArray function, that will allow us to iterate over a slice and
+// call the next function that we will define: "traverseNode
+fn traverseArray(a: Vec<Node>, p: Node, v: Visitor) {
+    for child in a {
+        traverseNode(child, *p, *v);
     }
 }
 fn traverseNode(n: Node, p: Node, v: Visitor) {
@@ -261,23 +305,97 @@ fn traverseNode(n: Node, p: Node, v: Visitor) {
     // will be the function. We call it with the node and its parent
     for (key, value) in &v {
         if k == n.kind {
-        value(&n, *p)
-    }
+            value(&n, *p)
+        }
     }
     // Next we split things up by the current node type
     match n.kind {
-
         // We start at top level "Program". Since program nodes have a prop named
         // 'body' that has a Vector of nodes, we will call 'traverseArray" to traverse
         // down into them. traverseArray will in turn call "traverseNode" so we are
-        // causing the tree to traversed recursively
-        String::from("Program") => traverseArray(n.body, n, v),
 
-
+        n.kind => traverseArray(n.body, n: Node, v: Visitor),
     }
 }
-
-
+/**
+ * Next up, the transformer. Our transformer is going to take the AST that we
+ * have built and pass it to our traverser function with a visitor and will
+ * create a new ast.
+ *
+ * ----------------------------------------------------------------------------
+ *   Original AST                     |   Transformed AST
+ * ----------------------------------------------------------------------------
+ *   {                                |   {
+ *     type: 'Program',               |     type: 'Program',
+ *     body: [{                       |     body: [{
+ *       type: 'CallExpression',      |       type: 'ExpressionStatement',
+ *       name: 'add',                 |       expression: {
+ *       params: [{                   |         type: 'CallExpression',
+ *         type: 'NumberLiteral',     |         callee: {
+ *         value: '2'                 |           type: 'Identifier',
+ *       }, {                         |           name: 'add'
+ *         type: 'CallExpression',    |         },
+ *         name: 'subtract',          |         arguments: [{
+ *         params: [{                 |           type: 'NumberLiteral',
+ *           type: 'NumberLiteral',   |           value: '2'
+ *           value: '4'               |         }, {
+ *         }, {                       |           type: 'CallExpression',
+ *           type: 'NumberLiteral',   |           callee: {
+ *           value: '2'               |             type: 'Identifier',
+ *         }]                         |             name: 'subtract'
+ *       }]                           |           },
+ *     }]                             |           arguments: [{
+ *   }                                |             type: 'NumberLiteral',
+ *                                    |             value: '4'
+ * ---------------------------------- |           }, {
+ *                                    |             type: 'NumberLiteral',
+ *                                    |             value: '2'
+ *                                    |           }]
+ *  (sorry the other one is longer.)  |         }]
+ *                                    |       }
+ *                                    |     }]
+ *                                    |   }
+ * ----------------------------------------------------------------------------
+ */
+// Transformer function accepts the lisp AST
+fn transformer(a: Ast) -> &Ast {
+    // Create a new Ast with a program node
+    let nast: Ast = Ast {
+        kind: Option::from(String::from("Program")),
+        value: None,
+        name: None,
+        callee: None,
+        expression: None,
+        body: Option::from(Vec::new()),
+        params: None,
+        arguments: None,
+        context: None,
+    };
+    if let Some(mut context) = a.context {
+       context = nast.body.copy();
+    }
+    // Define a sample function to be called by the visitor
+  fn visit_node_a(node: &Node, parent: Node) {
+        parent.context.push( Node {
+            kind: Option::from(String::from("NumberLiteral")),
+            value: None,
+            name: None,
+            callee: None,
+            expression: None,
+            body: None,
+            params: None,
+            arguments: None,
+            context: None,
+        })
+    }
+// Create the visitor
+    let mut visitor: Visitor = HashMap::new();
+    visitor.insert("node_a", visit_node_a);
+   traverser(a: Ast, visit_node_a({
+    H
+    }
+    return Ast;
+}
 
 
  fn main() {
