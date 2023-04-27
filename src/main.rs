@@ -2,114 +2,71 @@
 //explanations, comments, etc. Still work in progress
 use std::collections::HashMap;
 use std::error::Error;
+use std::iter::Peekable;
+use std::str::Chars;
 
-#[derive(Debug, PartialEq)]
-pub struct Token {
-    kind: String,
-    value: String,
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum Token {
+    Number(String),
+    Value(String),
+    String(String),
+    Open,
+    Close,
 }
 
-// Begin by accepting an input string, then two steps
-pub fn tokenizer(mut input: String) -> Vec<Token> {
-    // append newline to the program
-    let input_str: () = input.push('\n').clone();
-    // variable for tracking out position in the code, like a cursor
-    let mut current: usize = 0;
+// Begin by accepting an input string, which we need to "tokenize" before its parsed
+pub fn tokenizer(input: String) -> Result<Vec<Token>, String> {
+// This is done by splitting up the characters into groups or "Tokens", this makes it
+// possible to parse and begin to build our Abstract Syntax Tree.
+    // First we create a Vector to append the tokens from our input to,
+    // to be returned by our tokenizer function in the form of a Result type
 
-    // Vector to append the tokens to
-    let mut tokens = Vec::new();
+    let mut tokens: Vec<Token> = Vec::new();
+    // Instead of incrementing a counter a pointer, we will use Rust's powerful tools such as
+    // while let, and match statements to traverse the input string
 
-    // We begin by creating a loop where we set up out 'current'
-    //variable to be incremented as much as we want inside the loop
-    //
-    // We do this because we may want to incrmement 'current' many times a
-    // single loop because our tokens can be any length.
-
-    while current < input.as_bytes().len() as usize {
-        let vals: Vec<char> = input.chars().collect();
-        let mut ch: String = String::from(vals[current]);
-
-        // The first thing we check, is to look for open parenthesis. This will later
-        // be used s 'CallExpressions' but for now we only care about the character.
-        //
-        // We check to see if we have an open parenthesis:
-        if ch == "(" {
-            // If we do, we append a new token to our vector of kind "paren"
-            // and set the value to an open parenthesis.
-            tokens.push(Token {
-                kind: String::from("paren"),
-                value: String::from('('),
-            });
-            // increment current to maintain our cursor position
-            current += 1;
-            // and we continue to the next cycle
-            continue;
+        let mut vals: Peekable<Chars> = input.clone().chars().peekable();
+        while let Some(ch) = vals.next() {
+            // While let is
+            match ch {
+                // The order doesn't matter, but we first check for parenthesis.
+                // They will be used later in 'CallExpressions'
+                // but for now we only care about the characters/numbers
+               '(' => tokens.push(Token::Open),
+               // Match statements in rust act much like switch statments in other languages
+               ')' => tokens.push(Token::Close),
+                '0'...'9' => {
+                    let mut num = String::new();
+                    num.push(ch);
+                    while let Some(&'0'...'9') = ch.peek() {
+                        num.push(ch.next().unwrap());
+                    }
+                    tokens.push(Token::Number(num));
+                },
+                'a'...'z' => {
+                    let mut letters = String::new();
+                    letter.push(ch);
+                    while let Some(&'a'...'z') = ch.peek() {
+                        letters.push(ch.next().unwrap());
+                    }
+                    tokens.push(Token::String(letters));
+                },
+                '"' => {
+                    let mut value = String::new();
+                    while match ch.peek() {
+                        Some(&'"') | None() => false,
+                        _ => true
+                    } {
+                        value.push(ch.next().unwrap());
+                    }
+                    tokens.push(Token::Value(value));
+                    ch.next().unwrap();
+                },
+                (_) => return Err(format!("Character not recognized"))
+            };
         }
-        // Now we check for closing parenthesis. Exact same steps. check, store token
-        // increment current and continue.
-        if ch == ")" {
-            tokens.push(Token {
-                kind: String::from("paren"),
-                value: String::from(')'),
-            });
-            current += 1;
-            continue;
-        }
-        // Now we must check for whitespace. This is interesting because we care that it
-        // exists to separate characters, but it isn't important for us to store as a token.
-        // we would only throw it out later, so we will check for existance and if it exists, we
-        // will simply 'continue'
-        if ch.as_str() == " " {
-            current += 1;
-            continue;
-        }
-        // our next type of token is a number. This is different because it could be any
-        // number of characters, and we ant to capture the entire sequence of characters
-        // and store it as one token.
-        if ch.parse::<f64>().is_ok() {
-            // We need to create a string that we can append the characters to
-            let mut value: String = String::new();
-
-            // Then we are going to loop through each character in the sequence until
-            // we encounter a character that isn't a number, pushing each one that
-            // is to our 'value' string and incrementing 'current'
-            while ch.parse::<f64>().is_ok() {
-                value += ch.as_str();
-                current += 1;
-                ch = String::from(vals[current]);
-            }
-            // And we append our 'number' token to the tokens vector
-
-            tokens.push(Token {
-                kind: String::from("number"),
-                value: value,
-            });
-            continue;
-        }
-        // The last type of token will be a "name" token. This is a sequence of letters
-        // instead of numbers, that are the names of function calls in our lisp syntax.
-        // (add 2 4)
-
-        // Name token
-
-        if ch.is_ascii() {
-            let mut value: String = String::new();
-            // if we find letters, we push them to new string and store it in value variable
-
-            while ch.is_ascii() {
-                value += ch.as_str();
-                current += 1;
-                ch = String::from(vals[current]);
-            }
-            // and append that value as a token with the type 'name' and continuing
-            tokens.push(Token {
-                kind: String::from("name"),
-                value: value,
-            });
-        }
-        break;
-    }
-    return tokens;
+            return Ok(tokens);
 }
 
 // We define our struct "Node". In the struct are the lifetimes of the references
@@ -379,7 +336,7 @@ fn transformer(a: Ast) -> &Ast {
         parent.context.push( Node {
             kind: Option::from(String::from("NumberLiteral")),
             value: None,
-            name: None,
+            name: NoneM,
             callee: None,
             expression: None,
             body: None,
@@ -392,7 +349,7 @@ fn transformer(a: Ast) -> &Ast {
     let mut visitor: Visitor = HashMap::new();
     visitor.insert("node_a", visit_node_a);
    traverser(a: Ast, visit_node_a({
-    H
+
     }
     return Ast;
 }
