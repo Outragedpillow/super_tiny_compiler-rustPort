@@ -24,17 +24,20 @@ pub fn tokenizer(input: String) -> Result<Vec<Token>, String> {
 
     let mut tokens: Vec<Token> = Vec::new();
     // Instead of incrementing a counter a pointer, we will use Rust's powerful tools such as
-    // while let, and match statements to traverse the input string
-
+    // while let, and match statements to traverse the input string one character at a time, 
+    // checking to see what type it is, and storing similar components in "token" enums.
         let mut vals: Peekable<Chars> = input.clone().chars().peekable();
         while let Some(ch) = vals.next() {
-            // While let is
+            // While let is a great Rust tool, essentially the same thing as while the input 
+        // string is not equal to nothing, we match each character
             match ch {
                 // The order doesn't matter, but we first check for parenthesis.
                 // They will be used later in 'CallExpressions'
                 // but for now we only care about the characters/numbers
                '(' => tokens.push(Token::Open),
-               // Match statements in rust act much like switch statments in other languages
+               // Match statements in rust act much like switch statments in other languages,
+            // only they require you to handle EVERY possible outcome, with (_) being the 
+            // "or else.." wildcard type outcome
                ')' => tokens.push(Token::Close),
                 '0'...'9' => {
                     let mut num = String::new();
@@ -47,7 +50,7 @@ pub fn tokenizer(input: String) -> Result<Vec<Token>, String> {
                 'a'...'z' => {
                     let mut letters = String::new();
                     letter.push(ch);
-                    while let Some(&'a'...'z') = ch.peek() {
+                   while let Some(&'a'...'z') = ch.peek() {
                         letters.push(ch.next().unwrap());
                     }
                     tokens.push(Token::String(letters));
@@ -63,34 +66,87 @@ pub fn tokenizer(input: String) -> Result<Vec<Token>, String> {
                     tokens.push(Token::Value(value));
                     ch.next().unwrap();
                 },
+                // In this case the wildcard _ match will throw an error if its not a character
+            // we can use or need.
                 (_) => return Err(format!("Character not recognized"))
             };
         }
             return Ok(tokens);
 }
-
-// We define our struct "Node". In the struct are the lifetimes of the references
-// in the arguments and context fields are tied to the lifetime of the Node instance itself,
-// indicated by the use of &'a [Node<'a>].. This allows us to have a flexible number of
-//elements in these fields, without needing to allocate a vector on the heap
-#[derive(Debug, PartialEq)]
-struct Node<'a> {
-    kind: Option<String>,
-    value: Option<String>,
-    name: Option<String>,
-    callee: Option<*mut Node<'a>>,
-    expression: Option<*mut Node<'a>>,
-    body: Option<Vec<Node<'a>>>,
-    params: Option<Vec<Node<'a>>>,
-    arguments: Option<&'a [Node<'a>]>,
-    context: Option<&'a [Node<'a>]>,
+// Rust Enums are one of the most powerful components of the language, they allow us to define
+// custom types with different values, implement methods on them, and define constructor methods
+// which match values to their respective type. This gives us the power of OOP without the 
+// rigid lack of flexibility.
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub enum NodeType {
+    Program,
+    CallExpression,
+    StringLiteral,
+    NumberLiteral,
 }
 
-// "ast" (abstract syntax tree) will simply be an alias for "Node". As node contains many
-// parameters it will end up being referenced a lot
-type Ast<'a> = Node<'a>;
-// Now we define our "parser" function that accepts a vector of Tokens
-fn parser<'a>(tokens: Vec<&Token>, &mut pc: usize, &mut pt: Vec<&Token>) -> Ast<'a> {
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub enum Node {
+    Program { body: Vec<Node> },
+    CallExpression { name: String, params: Vec<Node> },
+    StringLiteral(String),
+    NumberLiteral(String),
+}
+// This is our "constructor" / init method for our Node type
+impl Node {
+    fn get_type(&self) -> NodeType {
+        match *self {
+            Node::Program { .. } => NodeType::Program,
+            Node::CallExpression { .. } => NodeType::CallExpression,
+            Node::StringLiteral(_) => NodeType::StringLiteral,
+            Node::NumberLiteral(_) => NodeType::StringLiteral,
+        }
+    }
+}
+// For the second step of our compilation, we need to parse the tokens we created in our tokenizer
+// function. We accept a vector of tokens and return a Result type, which either gives us a 
+// Node or a String (Which will essentially be an error)
+pub fn parser(tokens: Vec<Token>) -> Result<Node, String> {
+    // the walk function takes a token, and a Peekable type (As we used before, it allows us to 
+    // see farther into the iterable to check our current variable against)
+    fn walk(token: Token, token_iter: &mut Peekable<IntoIter<Token>>) -> Result<Node, String> {
+        match token {
+            Token::Number(value) => Ok(Node::NumberLiteral(value)  
+            Token::String(value) => Ok(Node::StringLiteral(value)),
+            Token::Open => {
+                if let Some(token) = token_iter.next() {
+                    match token {
+                        Token::Name(name) => {
+                            let mut params: Vec<Node> = vec![];
+
+                            while match token_iter.peek() {
+                                Some(&Token::Close) |
+                                None =? false,
+                                _ => true,
+                                } {
+                                    match walk(token_iter.next().unwrap(), token_iter) {
+                                        Ok(nodes) => params.push(nodes),
+                                        Err(value) => return Err(value),
+                                    }
+                                }
+                                // we are skipping Token::Close (closing parenthesis)
+                                token_iter.next().unwrap();
+
+                                Ok(Node::CallExpression {
+                                    name: name,
+                                    params: params,
+                                })
+                            }
+                            _ => {
+                                return Err(format!("{:?} isn't followed by a {:?}.", )),
+                                    
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
     //create a counter much as we did before in tokenizer
     pt = tokens;
 
